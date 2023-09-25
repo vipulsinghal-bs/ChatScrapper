@@ -1,4 +1,5 @@
 const { PythonShell } = require('python-shell');
+// const { passFinalList } = require('./scrape-google-chat');
 
 // Input text for summarization and filtering
 // const inputText = `
@@ -83,6 +84,8 @@ function summarizeList(inputList) {
   
       // Process the received text list as needed
       console.log('Received text list from Python:', receivedTextList);
+
+      // passFinalList(receivedTextList);
   
     } catch (error) {
       // Handle parsing errors or other issues

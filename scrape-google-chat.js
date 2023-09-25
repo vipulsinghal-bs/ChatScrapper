@@ -1,17 +1,48 @@
+const express = require('express');
 const puppeteer = require('puppeteer');
 const { filterList } = require('./text-summary');
+const cors = require('cors');
 
-(async () => {
-  const browser = await puppeteer.launch({ headless: true }); // Launch a headful browser for testing
-  const page = await browser.newPage();
+const app = express();
+const port = process.env.PORT || 3000;
 
-  const navigationPromise = page.waitForNavigation()
+app.use(express.json());
+
+app.use(cors());
+
+app.post('/scrape', async (req, res) => {
+  const {email, password, space_url, months} = req.body
+  try {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+
+    // Your Puppeteer script here...
+    // Ensure that you execute the script and store the result in a variable, e.g., divTexts
+
+    const divTexts = await executePuppeteerScript(page, email, password,space_url,months);
+
+    filterList(divTexts)
+    // Send the response
+    res.json({ success: true, data: divTexts });
+
+    await browser.close();
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+async function executePuppeteerScript(page, email, password, space_url,months) {
+  // Your Puppeteer script here...
+  // Make sure to return the result from your script, e.g., divTexts
+
+  const navigationPromise = page.waitForNavigation();
 
   await page.goto('https://accounts.google.com/ServiceLogin?continue=https://chat.google.com/?referrer=2', { waitUntil: 'domcontentloaded' });
 
   await navigationPromise
 
-  await page.type('input[type="email"]', 'vipul.singhal@bigsteptech.com');
+  await page.type('input[type="email"]', email);
   await page.waitForSelector('#identifierNext')
   await page.click('#identifierNext');
 
@@ -19,7 +50,7 @@ const { filterList } = require('./text-summary');
 
   await page.waitForSelector('input[type="password"]');
   await page.click('input[type="password"]')
-  await page.type('input[type="password"]', 'vipul@bigstep');
+  await page.type('input[type="password"]', password);
 
   await page.waitForSelector('#passwordNext')
   await page.click('#passwordNext')  
@@ -27,100 +58,74 @@ const { filterList } = require('./text-summary');
   await page.setDefaultTimeout(30000);
   await page.waitForTimeout(20000)
 
-  page.goto('https://mail.google.com/chat/u/0/#chat/space/AAAAshUm0uo')
+  page.goto(space_url)
 
   await navigationPromise
 
-  // await page.evaluate(() => {
-  //   window.scrollBy(0, -500); // Adjust the scroll amount as needed (from sudhir)
-  // });
+  await page.evaluate(() => {
+    window.scrollBy(0, -500); // Adjust the scroll amount as needed (from sudhir)
+  });
 
   const iframeHandle = await page.waitForSelector('iframe[title="Chat content"]');
   const frame = await iframeHandle.contentFrame();
 
-  // Find the div element inside the iframe and extract its text content
-
-  // const divText = await frame.evaluate(() => {
-  //   const div = document.querySelector('div[jsname="bgckF"]');
-  //   return div ? div.textContent.trim() : null;
+  // const divTexts = await frame.evaluate(() => {
+  //   const divs = document.querySelectorAll('div[jsname="bgckF"]');
+  //   return Array.from(divs).map((div) => div.textContent.trim());
   // });
 
-  const divTexts = await frame.evaluate(() => {
-    const divs = document.querySelectorAll('div[jsname="bgckF"]');
-    return Array.from(divs).map((div) => div.textContent.trim());
-  });
+  // return divTexts;
 
-  // let reachedTarget = false;                      // from sudhir
-  // await frame.click('div[class="cK9mzf"]');  
-  // while (!reachedTarget) {
-  //   await frame.focus('body');
-  //   for(let i = 0;i<3;i++) {
-  //     await frame.page().keyboard.press('ArrowUp')
-  //   }
-  //   const isTargetVisible = await frame.evaluate(() => {
-  //     const targetElement = document.querySelector('div[class="cK9mzf"]'); // Replace with the selector of your target element
-  //     const topElement = document.querySelector('button[aria-label="Add people & apps to this space"]');
-  //     if (targetElement || topElement) {
-  //       const dateString = targetElement.textContent;
-  //       const year = 2023; // You can change this to any desired year
-  //       const dateStringWithYear = dateString + `, ${year}`;
-  //       const specificDate = dateString != 'Yesterday' && dateString != 'Today' ? new Date(dateStringWithYear): new Date();
-  //       return specificDate <= new Date('Friday, June 02' + `, ${year}`) || topElement;
-  //     }
-  //     return false;
-  //   });
-
-  //   if (isTargetVisible) {
-  //     reachedTarget = true;
-  //     console.log('Reached the target text "Mon 18 Sep".');
-  //   }
-  // }
-  // const divText = await frame.evaluate(async () => {
-  //   // debugger
-  //   let namesNodes = document.querySelectorAll('div[jsname="A9KrYd"]');
-  //   let messagesNodes = document.querySelectorAll('div[class="Hj5Fxb"]');
-  //   let title = document.title;
-  //   let names = [];
-  //   let messages = [];
-  //   for(let i = 0;i< messagesNodes.length;i++) {
-  //     const text = messagesNodes[i].firstElementChild.textContent.trim()
-  //     const imgSrc = messagesNodes[i].getElementsByClassName('HQLhSc').length != 0? messagesNodes[i].getElementsByClassName('HQLhSc')[0].src: null;
-  //     messages.push({text, imgSrc, name: namesNodes[i].textContent.trim()});
-  //   }
-  //   return messages;
-  // });
-    
-  // if (divText !== null) {
-  //   console.log('Text content of the div inside the iframe:', divText);
-  //   // const newsletterHTML = generateNewsletterHTML(divText);
-  // } else {
-  //   console.log('Div element not found inside the iframe.');
-  // }
-
-  divTexts.forEach((text, index) => {
-      console.log(`Text content of div ${index + 1}: ${text}`);
+  let reachedTarget = false;                      // from sudhir
+  await frame.click('div[class="cK9mzf"]');  
+  while (!reachedTarget) {
+    await frame.focus('body');
+    for(let i = 0;i<3;i++) {
+      await frame.page().keyboard.press('ArrowUp')
+    }
+    const isTargetVisible = await frame.evaluate(() => {
+      const targetElement = document.querySelector('div[class="cK9mzf"]'); // Replace with the selector of your target element
+      const topElement = document.querySelector('button[aria-label="Add people & apps to this space"]');
+      if (targetElement || topElement) {
+        const dateString = targetElement.textContent;
+        const year = 2023; // You can change this to any desired year
+        const dateStringWithYear = dateString + `, ${year}`;
+        const specificDate = dateString != 'Yesterday' && dateString != 'Today' ? new Date(dateStringWithYear): new Date();
+        return specificDate <= new Date('Friday, June 02' + `, ${year}`) || topElement;
+      }
+      return false;
     });
 
-  filterList(divTexts);
-
+    if (isTargetVisible) {
+      reachedTarget = true;
+      console.log('Reached the target text "Mon 18 Sep".');
+    }
+  }
+  const divText = await frame.evaluate(async () => {
+    // debugger
+    let namesNodes = document.querySelectorAll('div[jsname="A9KrYd"]');
+    let messagesNodes = document.querySelectorAll('div[class="Hj5Fxb"]');
+    let title = document.title;
+    let names = [];
+    let messages = [];
+    for(let i = 0;i< messagesNodes.length;i++) {
+      const text = messagesNodes[i].firstElementChild.textContent.trim()
+      const imgSrc = messagesNodes[i].getElementsByClassName('HQLhSc').length != 0? messagesNodes[i].getElementsByClassName('HQLhSc')[0].src: null;
+      messages.push({text,title, imgSrc, name: namesNodes[i].textContent.trim()});
+    }
+    return messages;
+  });
     
-  // Extract messages (this is just a basic example, you'll need to refine it).
-  // const messages = await page.evaluate(() => {
-  //   const messageElements = document.querySelectorAll('div[role="listitem"]'); // Adjust the selector as needed.
-  //   const messages = [];
+  if (divText !== null) {
+    console.log('Text content of the div inside the iframe:', divText);
+    // const newsletterHTML = generateNewsletterHTML(divText);
+  } else {
+    console.log('Div element not found inside the iframe.');
+  }
 
-  //   for (const messageElement of messageElements) {
-  //     const sender = messageElement.querySelector('span[aria-label="Sender name"]').textContent;
-  //     const messageText = messageElement.querySelector('div[data-message-id]').textContent;
-  //     const timestamp = messageElement.querySelector('div[role="timer"]').getAttribute('title');
+  return divText
+}
 
-  //     messages.push({ sender, messageText, timestamp });
-  //   }
-
-  //   return messages;
-  // });
-
-  // console.log(messages);
-
-  await browser.close();
-})();
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

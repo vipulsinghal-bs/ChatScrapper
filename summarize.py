@@ -23,8 +23,9 @@ from transformers import pipeline
 # Define a function to perform summarization
 def summarize_text(text):
     summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-    summary = summarizer(text, max_length=300, min_length=50, do_sample=False)[0]["summary_text"]
-    return summary
+    summary = summarizer(text['text'], max_length=300, min_length=50, do_sample=False)[0]["summary_text"]
+    text['text'] = summary
+    return text
 
 # # List of large text inputs
 # large_text_list = [...]

@@ -21,7 +21,8 @@ text_list = json.loads(input_data)
 # Perform sentiment analysis
 
 def filter_messages(text):
- sentiment_scores = sid.polarity_scores(text)
+ print(text)
+ sentiment_scores = sid.polarity_scores(text['text'])
 # Interpret the sentiment scores
  compound_score = sentiment_scores['compound']
  return compound_score >= 0.90
