@@ -1,6 +1,6 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
-const { filterList } = require('./text-summary');
+const { filterList, summarizeList } = require('./text-summary');
 const cors = require('cors');
 
 const app = express();
@@ -10,7 +10,9 @@ app.use(express.json());
 
 app.use(cors());
 
-app.post('/scrape', async (req, res) => {
+app.post('/scrape', startExecution, filterList, summarizeList);
+
+async function startExecution(req, res, next) {
   const {email, password, space_url, months} = req.body
   try {
     const browser = await puppeteer.launch({ headless: true });
@@ -21,16 +23,19 @@ app.post('/scrape', async (req, res) => {
 
     const divTexts = await executePuppeteerScript(page, email, password,space_url,months);
 
-    filterList(divTexts)
-    // Send the response
-    res.json({ success: true, data: divTexts });
+    req.inputList = divTexts;
+    next();
+
+    // filterList(divTexts)
+    // // Send the response
+    // res.json({ success: true, data: divTexts });
 
     await browser.close();
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
-});
+}
 
 async function executePuppeteerScript(page, email, password, space_url,months) {
   // Your Puppeteer script here...
@@ -83,7 +88,9 @@ async function executePuppeteerScript(page, email, password, space_url,months) {
     for(let i = 0;i<3;i++) {
       await frame.page().keyboard.press('ArrowUp')
     }
-    const isTargetVisible = await frame.evaluate(() => {
+    const isTargetVisible = await frame.evaluate((months) => {
+      let date = new Date();
+      date = date.setMonth(date.getMonth()-parseInt(months,10));
       const targetElement = document.querySelector('div[class="cK9mzf"]'); // Replace with the selector of your target element
       const topElement = document.querySelector('button[aria-label="Add people & apps to this space"]');
       if (targetElement || topElement) {
@@ -91,30 +98,33 @@ async function executePuppeteerScript(page, email, password, space_url,months) {
         const year = 2023; // You can change this to any desired year
         const dateStringWithYear = dateString + `, ${year}`;
         const specificDate = dateString != 'Yesterday' && dateString != 'Today' ? new Date(dateStringWithYear): new Date();
-        return specificDate <= new Date('Friday, June 02' + `, ${year}`) || topElement;
+        // return specificDate <= new Date('Friday, June 02' + `, ${year}`) || topElement;
+        return specificDate <= date || topElement;
+
       }
       return false;
-    });
+    },months);
 
     if (isTargetVisible) {
       reachedTarget = true;
       console.log('Reached the target text "Mon 18 Sep".');
     }
   }
-  const divText = await frame.evaluate(async () => {
+  let title = await page.title();
+  const divText = await frame.evaluate(async (title) => {
     // debugger
     let namesNodes = document.querySelectorAll('div[jsname="A9KrYd"]');
     let messagesNodes = document.querySelectorAll('div[class="Hj5Fxb"]');
-    let title = document.title;
-    let names = [];
+    // let title = document.title;
+    // let names = [];
     let messages = [];
     for(let i = 0;i< messagesNodes.length;i++) {
       const text = messagesNodes[i].firstElementChild.textContent.trim()
       const imgSrc = messagesNodes[i].getElementsByClassName('HQLhSc').length != 0? messagesNodes[i].getElementsByClassName('HQLhSc')[0].src: null;
-      messages.push({text,title, imgSrc, name: namesNodes[i].textContent.trim()});
+      messages.push({text,title, imgSrc, name: namesNodes[i].textContent.trim().split(',')[0]});
     }
     return messages;
-  });
+  },title);
     
   if (divText !== null) {
     console.log('Text content of the div inside the iframe:', divText);

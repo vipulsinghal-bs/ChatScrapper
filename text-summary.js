@@ -9,8 +9,10 @@ const { PythonShell } = require('python-shell');
 // `;
 
 
-function filterList(inputList) {
+function filterList(req, res, next) {
     // console.log('Received list:', inputList);
+
+    const inputList = req.inputList;
 
     const options = {
     mode: 'text',
@@ -33,8 +35,9 @@ function filterList(inputList) {
   
       // Update the receivedTextList variable with the parsed array
       filteredTextList = parsedTextList;
-  
-      summarizeList(filteredTextList);
+      req.inputList = filteredTextList;
+      next();
+      // summarizeList(filteredTextList);
   
       // You can now work with receivedTextList as needed
     } catch (error) {
@@ -57,8 +60,9 @@ function filterList(inputList) {
 
 
 
-function summarizeList(inputList) {
+function summarizeList(req, res, next) {
     // console.log('Received list:', inputList);
+    const inputList = req.inputList;
 
     const summarizeoptions = {
     mode: 'text',
@@ -82,6 +86,8 @@ function summarizeList(inputList) {
       // Update the receivedTextList variable with the parsed array
       receivedTextList = parsedTextList;
   
+      res.json({ success: true, data: receivedTextList });
+
       // Process the received text list as needed
       console.log('Received text list from Python:', receivedTextList);
 
