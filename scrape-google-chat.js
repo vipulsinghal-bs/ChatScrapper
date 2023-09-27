@@ -120,7 +120,10 @@ async function executePuppeteerScript(page, email, password, space_url,months) {
     let messages = [];
     for(let i = 0;i< messagesNodes.length;i++) {
       const text = messagesNodes[i].firstElementChild.textContent.trim()
-      const imgSrc = messagesNodes[i].getElementsByClassName('HQLhSc').length != 0? messagesNodes[i].getElementsByClassName('HQLhSc')[0].src: null;
+      let imgSrc = messagesNodes[i].getElementsByClassName('HQLhSc').length != 0? messagesNodes[i].getElementsByClassName('HQLhSc')[0].src: null;
+      if (imgSrc && imgSrc.indexOf('chat.google.com') != -1) {
+        imgSrc = null;
+      }
       messages.push({text,title, imgSrc, name: namesNodes[i].textContent.trim().split(',')[0]});
     }
     return messages;
